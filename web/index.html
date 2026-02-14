@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>WS Chat Test</title>
+  <style>
+    body { font-family: system-ui; max-width: 720px; margin: 24px auto; padding: 0 12px; }
+    #log { height: 360px; border: 1px solid #ccc; padding: 8px; overflow: auto; white-space: pre-wrap; }
+    .row { display: flex; gap: 8px; margin-top: 10px; }
+    input { flex: 1; padding: 8px; }
+    button { padding: 8px 12px; }
+  </style>
+</head>
+<body>
+  <h1>WS Chat Test</h1>
+  <div id="log"></div>
+
+  <div class="row">
+    <input id="msg" placeholder="type message..." />
+    <button id="send">Send</button>
+  </div>
+
+  <script>
+    const log = document.getElementById("log");
+    const input = document.getElementById("msg");
+    const btn = document.getElementById("send");
+
+    const wsUrl = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
+    const ws = new WebSocket(wsUrl);
+
+    function writeLine(s) {
+      log.textContent += s + "\n";
+      log.scrollTop = log.scrollHeight;
+    }
+
+    ws.onopen = () => writeLine("[connected] " + wsUrl);
+    ws.onclose = () => writeLine("[closed]");
+    ws.onerror = () => writeLine("[error]");
+    ws.onmessage = (e) => writeLine(e.data);
+
+    function send() {
+      const v = input.value.trim();
+      if (!v) return;
+      ws.send(v);
+      input.value = "";
+      input.focus();
+    }
+
+    btn.onclick = send;
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") send();
+    });
+  </script>
+</body>
+</html>
