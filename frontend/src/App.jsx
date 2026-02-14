@@ -3,7 +3,7 @@ import "./App.css";
 
 function App() {
   const [userName, setUserName] = useState("");
-  const [showNamePopUp, setShowNamePopUp] = useState(true);
+  const [showNamePopUp, setShowNamePopUp] = useState(false);
   const [inputName, setInputName] = useState("");
   const [message, setMessage] = useState("");
   const [text, setText] = useState("");
@@ -83,6 +83,26 @@ function App() {
                   繼續
                 </button>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* chat window */}
+        {!showNamePopUp && (
+          <div className="w-full max-w-2xl h-[90vh] bg-white rounded-xl shadow-md flex flex-col overflow-hidden">
+            {/*chat header */}
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200">
+              {/* 預計放頭像 */}
+              <div className="h-10 w-10 rounded-full bg-[#075e54] flex items-center justify-center text-2xl">R</div>
+            
+              <div className="flex-1">
+                  <div className="text-sm font-medium text-[#303030]">競拍大廳</div>
+                  <div className="text-xs text-gray-500">XXX正在輸入中...</div>
+              </div>
+
+              <div className="text-sm text-gray-500">
+                  <span className="font-medium text-[#303030] capitalize">{userName}</span>
+              </div>
             </div>
           </div>
         )}
