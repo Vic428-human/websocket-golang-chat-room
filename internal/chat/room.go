@@ -44,7 +44,16 @@ func (r *Room) Run() {
 		// 所以房間要把訊息給 clients時，就是把消息透過 forward 通道 轉給 recevie通道的過程
 		case msg := <-r.forward:
 			for c := range r.clients {
-				c.receive <- msg
+				select {
+				case c.receive <- msg:
+					// ok
+				default:
+					// 慢 client：選擇一種策略
+					// 1) drop message (最簡單)
+					// 2) or disconnect:
+					delete(r.clients, c)
+					close(c.receive)
+				}
 			}
 		}
 	}
