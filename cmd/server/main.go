@@ -3,7 +3,9 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
+	"github.com/Vic428-human/websocket-golang-chat-room/internal/chat"
 	"github.com/gorilla/websocket"
 )
 
@@ -35,26 +37,18 @@ func main() {
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	mux.HandleFunc("/ws", func(w http.ResponseWriter, req *http.Request) {
-		conn, err := upgrader.Upgrade(w, req, nil)
-		if err != nil {
-			log.Println("upgrade:", err)
-			return
-		}
-		defer conn.Close()
+	// chat room
+	room := chat.NewRoom()
+	go room.Run()
 
-		for {
-			mt, msg, err := conn.ReadMessage()
-			if err != nil {
-				return
-			}
-			if err := conn.WriteMessage(mt, msg); err != nil {
-				return
-			}
-		}
-	})
+	// websocket endpoint
+	mux.Handle("/ws", room)
 
 	addr := ":8080"
+	if v := os.Getenv("ADDR"); v != "" {
+		addr = v
+	}
+
 	log.Printf("listening on %s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatal(err)
