@@ -1,18 +1,25 @@
 package chat
 
-import "github.com/gorilla/websocket"
+import (
+	"encoding/json"
+	"time"
+
+	"github.com/gorilla/websocket"
+)
 
 type Client struct {
 	socket  *websocket.Conn
 	receive chan []byte
 	room    *Room
+	name    string
 }
 
 func NewClient(conn *websocket.Conn, room *Room) *Client {
 	return &Client{
 		socket:  conn,
 		receive: make(chan []byte, 256),
-		room:    room,
+		// 給 Client 加 name
+		room: room,
 	}
 }
 
@@ -24,7 +31,24 @@ func (c *Client) ReadPump() {
 		if err != nil {
 			return
 		}
-		c.room.forward <- msg
+
+		var ev Event
+		if err := json.Unmarshal(msg, &ev); err != nil {
+			// 如果你想保留舊格式（純字串）也可以在這裡 fallback
+			continue
+		}
+
+		// server 強制綁定 name（避免偽造）
+		ev.Name = c.name
+		ev.Ts = time.Now().UnixMilli()
+
+		// typing 或 chat 都廣播
+		b, err := json.Marshal(ev)
+		if err != nil {
+			continue
+		}
+
+		c.room.forward <- b
 	}
 }
 

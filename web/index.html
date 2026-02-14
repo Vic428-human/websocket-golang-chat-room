@@ -5,12 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WS Chat Test</title>
     <style>
-      body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", Arial, sans-serif; margin: 16px; }
-      #log { border: 1px solid #ccc; padding: 10px; height: 280px; overflow: auto; white-space: pre-wrap; }
-      .row { margin: 10px 0; display: flex; gap: 8px; flex-wrap: wrap; }
-      input { padding: 8px; }
-      button { padding: 8px 12px; cursor: pointer; }
-      #msg { flex: 1; min-width: 220px; }
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Noto Sans TC",
+          Arial,
+          sans-serif;
+        margin: 16px;
+      }
+      #log {
+        border: 1px solid #ccc;
+        padding: 10px;
+        height: 280px;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+      .row {
+        margin: 10px 0;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      input {
+        padding: 8px;
+      }
+      button {
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+      #msg {
+        flex: 1;
+        min-width: 220px;
+      }
     </style>
   </head>
   <body>
@@ -37,6 +66,7 @@
       let ws = null;
 
       const logEl = document.getElementById("log");
+      // 先解決拿到 進入房間的人的名字，把那人的名字做為參數連同websocket一起傳送
       const nameEl = document.getElementById("name");
       const msgEl = document.getElementById("msg");
       const connectBtn = document.getElementById("connectBtn");
@@ -59,8 +89,13 @@
       function connect() {
         if (ws && ws.readyState === WebSocket.OPEN) return;
 
+        // 前端 connect 用 name 建連線（而不是 send 時拼字串）
+        const name = nameEl.value.trim() || "anonymous";
+        console.log('name:', name);
         // 啟用的時候要確認後端的 port確實是 8080
-        ws = new WebSocket("ws://localhost:8080/ws");
+        ws = new WebSocket(
+          `ws://localhost:8080/ws?name=${encodeURIComponent(name)}`,
+        );
 
         ws.onopen = () => {
           log("✅ Connected");
