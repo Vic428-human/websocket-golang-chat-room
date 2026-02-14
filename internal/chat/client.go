@@ -1,6 +1,11 @@
 package chat
 
-import "github.com/gorilla/websocket"
+import (
+	"encoding/json"
+	"time"
+
+	"github.com/gorilla/websocket"
+)
 
 type Client struct {
 	socket  *websocket.Conn
@@ -26,8 +31,24 @@ func (c *Client) ReadPump() {
 		if err != nil {
 			return
 		}
-		// 這樣就算前端送「假名字」，server 也會用它綁定的 name。
-		c.room.forward <- []byte(c.name + ": " + string(msg))
+
+		var ev Event
+		if err := json.Unmarshal(msg, &ev); err != nil {
+			// 如果你想保留舊格式（純字串）也可以在這裡 fallback
+			continue
+		}
+
+		// server 強制綁定 name（避免偽造）
+		ev.Name = c.name
+		ev.Ts = time.Now().UnixMilli()
+
+		// typing 或 chat 都廣播
+		b, err := json.Marshal(ev)
+		if err != nil {
+			continue
+		}
+
+		c.room.forward <- b
 	}
 }
 

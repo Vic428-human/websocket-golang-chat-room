@@ -20,14 +20,21 @@ function App() {
 
   const [connected, setConnected] = useState(false);
 
+  // typing indicator: who is currently typing (others)
+  const [typingUsers, setTypingUsers] = useState([]); // array of names
+  const typingTimersRef = useRef(new Map()); // name -> timeoutId (auto-expire)
+
   // WebSocket instance
   const wsRef = useRef(null);
 
-  // ✅ Step 6 核心：避免 onmessage 拿到舊的 userName（closure 問題）
+  // ✅ avoid closure issue in onmessage
   const userNameRef = useRef("");
   useEffect(() => {
     userNameRef.current = userName;
   }, [userName]);
+
+  // local debounce timer: when I stop typing, send typing:false
+  const typingStopTimerRef = useRef(null);
 
   // FORMAT TIMESTAMP HH:MM FOR MESSAGES
   const formatTime = (ts) => {
@@ -35,6 +42,12 @@ function App() {
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
     return `${hh}:${mm}`;
+  };
+
+  const sendTyping = (isTyping) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "typing", typing: isTyping }));
   };
 
   const connectWS = (name) => {
@@ -53,30 +66,59 @@ function App() {
     };
 
     ws.onmessage = (e) => {
-      const raw = String(e.data);
-
-      // index.html 版本送的是 "name: text"
-      let sender = "unknown";
-      let body = raw;
-
-      const idx = raw.indexOf(": ");
-      if (idx !== -1) {
-        sender = raw.slice(0, idx);
-        body = raw.slice(idx + 2);
+      let ev;
+      try {
+        ev = JSON.parse(String(e.data));
+      } catch {
+        // If your server still sends legacy "name: text" strings, you can optionally fallback here.
+        return;
       }
 
-      // ✅ Step 6：如果是自己的回播訊息，就不要再加一次（避免重複）
-      if (sender === userNameRef.current) return;
+      if (!ev || !ev.type) return;
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + Math.random(),
-          sender,
-          text: body,
-          ts: Date.now(),
-        },
-      ]);
+      // don't show my own typing / echo
+      if (ev.name === userNameRef.current) return;
+
+      if (ev.type === "chat") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (ev.ts ?? Date.now()) + Math.random(),
+            sender: ev.name ?? "unknown",
+            text: ev.text ?? "",
+            ts: ev.ts ?? Date.now(),
+          },
+        ]);
+        return;
+      }
+
+      if (ev.type === "typing") {
+        const name = ev.name;
+        if (!name) return;
+
+        const timers = typingTimersRef.current;
+
+        // clear old expiry timer
+        const old = timers.get(name);
+        if (old) clearTimeout(old);
+
+        if (ev.typing) {
+          // add to typing list
+          setTypingUsers((prev) => (prev.includes(name) ? prev : [...prev, name]));
+
+          // auto-expire if no refresh within 2.5s
+          const t = setTimeout(() => {
+            setTypingUsers((prev) => prev.filter((n) => n !== name));
+            timers.delete(name);
+          }, 2500);
+
+          timers.set(name, t);
+        } else {
+          // stop typing
+          setTypingUsers((prev) => prev.filter((n) => n !== name));
+          timers.delete(name);
+        }
+      }
     };
 
     ws.onclose = () => {
@@ -100,7 +142,6 @@ function App() {
     setUserName(trimmed);
     setShowNamePopUp(false);
 
-    // connect with name in query string (same as index.html approach)
     connectWS(trimmed);
   };
 
@@ -110,7 +151,7 @@ function App() {
     const trimmed = text.trim();
     if (!trimmed) return;
 
-    // 本地先顯示（即時）
+    // local optimistic render
     const localMsg = {
       id: Date.now(),
       sender: userName,
@@ -119,11 +160,13 @@ function App() {
     };
     setMessages((prev) => [...prev, localMsg]);
 
-    // 送到 WebSocket（讓別人收到）
     const ws = wsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) {
-      // 先沿用你目前 server 的純字串格式
-      ws.send(`${userName}: ${trimmed}`);
+      // stop typing to avoid others seeing you typing forever
+      sendTyping(false);
+
+      // send JSON chat event
+      ws.send(JSON.stringify({ type: "chat", text: trimmed }));
     } else {
       console.warn("WS not connected");
     }
@@ -139,12 +182,19 @@ function App() {
     }
   };
 
-  // cleanup: close ws on unmount
+  // cleanup: close ws & clear timers on unmount
   useEffect(() => {
     return () => {
       try {
         wsRef.current?.close();
       } catch {}
+
+      if (typingStopTimerRef.current) clearTimeout(typingStopTimerRef.current);
+
+      for (const t of typingTimersRef.current.values()) {
+        clearTimeout(t);
+      }
+      typingTimersRef.current.clear();
     };
   }, []);
 
@@ -182,7 +232,7 @@ function App() {
       {/* chat window */}
       {!showNamePopUp && (
         <div className="w-full max-w-2xl h-[90vh] bg-white rounded-xl shadow-md flex flex-col overflow-hidden">
-          {/*chat header */}
+          {/* chat header */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200">
             {/* avatar */}
             <div className="h-10 w-10 rounded-full bg-[#075e54] flex items-center justify-center text-2xl text-white">
@@ -191,8 +241,20 @@ function App() {
 
             <div className="flex-1">
               <div className="text-sm font-medium text-[#303030]">競拍大廳</div>
+
+              {/* status + typing indicator */}
               <div className="text-xs text-gray-500">
                 {connected ? "已連線" : "未連線"}
+                {connected && typingUsers.length > 0 && (
+                  <span className="ml-2">
+                    ·{" "}
+                    {typingUsers.length === 1
+                      ? `${typingUsers[0]} 正在輸入…`
+                      : `${typingUsers.slice(0, 2).join("、")} 等 ${
+                          typingUsers.length
+                        } 人正在輸入…`}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -241,7 +303,26 @@ function App() {
           >
             <input
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setText(v);
+
+                if (!connected) return;
+
+                // If you want "empty string => not typing", enable this:
+                // if (!v.trim()) { sendTyping(false); return; }
+
+                // notify others I'm typing
+                sendTyping(true);
+
+                // debounce stop-typing
+                if (typingStopTimerRef.current)
+                  clearTimeout(typingStopTimerRef.current);
+
+                typingStopTimerRef.current = setTimeout(() => {
+                  sendTyping(false);
+                }, 1200);
+              }}
               onKeyDown={handleKeyDown}
               disabled={!connected}
               placeholder={connected ? "輸入訊息..." : "尚未連線"}
