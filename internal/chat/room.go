@@ -1,5 +1,12 @@
 package chat
 
+import (
+	"log"
+	"net/http"
+
+	"github.com/gorilla/websocket"
+)
+
 type Room struct {
 	clients map[*Client]bool
 	join    chan *Client
@@ -41,4 +48,31 @@ func (r *Room) Run() {
 			}
 		}
 	}
+}
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 256,
+	CheckOrigin:     func(r *http.Request) bool { return true },
+}
+
+func (r *Room) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	conn, err := upgrader.Upgrade(w, req, nil)
+	if err != nil {
+		log.Println("ServeHTTP upgrade:", err)
+		return
+	}
+
+	client := NewClient(conn, r)
+
+	// register
+	r.join <- client
+
+	// unregister on exit
+	defer func() {
+		r.leave <- client
+	}()
+
+	go client.WritePump()
+	client.ReadPump() // block
 }
