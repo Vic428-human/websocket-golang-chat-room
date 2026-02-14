@@ -7,6 +7,19 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+/*
+測試在瀏覽器輸入
+let ws = new WebSocket("ws://localhost:8080/ws")
+ws.onmessage = (e) => console.log("server:", e.data)
+ws.send("hello")
+
+這代表：
+Upgrade 成功
+ReadMessage 成功
+WriteMessage 成功
+pipeline 正常
+*/
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 256,
