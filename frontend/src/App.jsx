@@ -1,11 +1,31 @@
 import { useState } from "react";
 import "./App.css";
 
+const fakeMessages = [
+  {
+    id: 1742100123000,
+    sender: "系統",
+    text: "歡迎來到競拍大廳！請遵守規則，理性出價～",
+    ts: 1742100123000,
+  },
+  {
+    id: 1742100138000,
+    sender: "小明",
+    text: "這次有什麼好東西啊？？",
+    ts: 1742100138000,
+  },
+  {
+    id: 1742100152000,
+    sender: "阿強",
+    text: "聽說有 PS5 Pro 限量版耶",
+    ts: 1742100152000,
+  },
+];
 function App() {
-  const [userName, setUserName] = useState("");
+  const [userName, setUserName] = useState("系統");
   const [showNamePopUp, setShowNamePopUp] = useState(false);
   const [inputName, setInputName] = useState("");
-  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState(fakeMessages);
   const [text, setText] = useState("");
 
   // FORMAT TIMESTAMP HH:MM FOR MESSAGES
@@ -41,7 +61,7 @@ function App() {
       ts: Date.now(),
     };
 
-    setMessage((message) => [...message, msg]);
+    setMessages((message) => [...message, msg]);
     setText("");
   };
 
@@ -93,16 +113,52 @@ function App() {
             {/*chat header */}
             <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200">
               {/* 預計放頭像 */}
-              <div className="h-10 w-10 rounded-full bg-[#075e54] flex items-center justify-center text-2xl">R</div>
-            
+              <div className="h-10 w-10 rounded-full bg-[#075e54] flex items-center justify-center text-2xl">
+                R
+              </div>
+
               <div className="flex-1">
-                  <div className="text-sm font-medium text-[#303030]">競拍大廳</div>
-                  <div className="text-xs text-gray-500">XXX正在輸入中...</div>
+                <div className="text-sm font-medium text-[#303030]">
+                  競拍大廳
+                </div>
+                <div className="text-xs text-gray-500">XXX正在輸入中...</div>
               </div>
 
               <div className="text-sm text-gray-500">
-                  <span className="font-medium text-[#303030] capitalize">{userName}</span>
+                <span className="font-medium text-[#303030] capitalize">
+                  {userName}
+                </span>
               </div>
+            </div>
+
+            {/* chat messages list */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-zinc-100 flex flex-col">
+              {messages.map((m) => {
+                const mine = m.sender === userName;
+                return (
+                  <div
+                    className={`flex ${mine ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-[78%] p-3 my-2 rounded-[18px] text-sm leading-5 shadow-sm ${
+                        mine
+                          ? "bg-green-500 text-white rounded-br-2xl"
+                          : "bg-white text-[#303030] rounded-bl-2xl"
+                      }`}
+                    >
+                      <div className="wrap-break-words whitespace-pre-wrap mb-1">
+                        <span className="font-medium">{m.text}</span>
+                      </div>
+                      <div className="flex justify-between items-center mt-1 gap-16">
+                        <div className="text-[11px] font-bold">{m.sender}</div>
+                        <span className="text-[11px] text-gray-500 text-right">
+                          {formatTime(m.ts)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
