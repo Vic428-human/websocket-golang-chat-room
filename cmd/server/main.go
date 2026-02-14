@@ -1,12 +1,11 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/Vic428-human/websocket-golang-chat-room/internal/chat"
-	"github.com/gorilla/websocket"
 )
 
 /*
@@ -21,36 +20,20 @@ ReadMessage 成功
 WriteMessage 成功
 pipeline 正常
 */
-
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 256,
-	// Demo 用：先允許所有 origin，正式環境要收緊
-	CheckOrigin: func(r *http.Request) bool { return true },
-}
-
 func main() {
-	mux := http.NewServeMux()
 
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
-	})
-
+	var addr = flag.String("addr", ":8080", "Addr of the app")
+	flag.Parse()
 	// chat room
 	room := chat.NewRoom()
-	go room.Run()
 
 	// websocket endpoint
-	mux.Handle("/ws", room)
+	http.Handle("/ws", room)
 
-	addr := ":8080"
-	if v := os.Getenv("ADDR"); v != "" {
-		addr = v
-	}
+	go room.Run()
 
-	log.Printf("listening on %s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	log.Printf("Starting web server on: ", *addr)
+	if err := http.ListenAndServe(*addr, nil); err != nil {
 		log.Fatal(err)
 	}
 }

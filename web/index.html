@@ -1,56 +1,116 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>WS Chat Test</title>
-  <style>
-    body { font-family: system-ui; max-width: 720px; margin: 24px auto; padding: 0 12px; }
-    #log { height: 360px; border: 1px solid #ccc; padding: 8px; overflow: auto; white-space: pre-wrap; }
-    .row { display: flex; gap: 8px; margin-top: 10px; }
-    input { flex: 1; padding: 8px; }
-    button { padding: 8px 12px; }
-  </style>
-</head>
-<body>
-  <h1>WS Chat Test</h1>
-  <div id="log"></div>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WS Chat Test</title>
+    <style>
+      body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", Arial, sans-serif; margin: 16px; }
+      #log { border: 1px solid #ccc; padding: 10px; height: 280px; overflow: auto; white-space: pre-wrap; }
+      .row { margin: 10px 0; display: flex; gap: 8px; flex-wrap: wrap; }
+      input { padding: 8px; }
+      button { padding: 8px 12px; cursor: pointer; }
+      #msg { flex: 1; min-width: 220px; }
+    </style>
+  </head>
+  <body>
+    <h2>WebSocket Chat Test</h2>
 
-  <div class="row">
-    <input id="msg" placeholder="type message..." />
-    <button id="send">Send</button>
-  </div>
+    <div class="row">
+      <label>
+        暱稱：
+        <input id="name" placeholder="輸入使用者名稱" />
+      </label>
 
-  <script>
-    const log = document.getElementById("log");
-    const input = document.getElementById("msg");
-    const btn = document.getElementById("send");
+      <button id="connectBtn">Connect</button>
+      <button id="disconnectBtn" disabled>Disconnect</button>
+    </div>
 
-    const wsUrl = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
-    const ws = new WebSocket(wsUrl);
+    <div id="log"></div>
 
-    function writeLine(s) {
-      log.textContent += s + "\n";
-      log.scrollTop = log.scrollHeight;
-    }
+    <div class="row">
+      <input id="msg" placeholder="輸入訊息後按 Enter 或 Send" disabled />
+      <button id="sendBtn" disabled>Send</button>
+    </div>
 
-    ws.onopen = () => writeLine("[connected] " + wsUrl);
-    ws.onclose = () => writeLine("[closed]");
-    ws.onerror = () => writeLine("[error]");
-    ws.onmessage = (e) => writeLine(e.data);
+    <script>
+      let ws = null;
 
-    function send() {
-      const v = input.value.trim();
-      if (!v) return;
-      ws.send(v);
-      input.value = "";
-      input.focus();
-    }
+      const logEl = document.getElementById("log");
+      const nameEl = document.getElementById("name");
+      const msgEl = document.getElementById("msg");
+      const connectBtn = document.getElementById("connectBtn");
+      const disconnectBtn = document.getElementById("disconnectBtn");
+      const sendBtn = document.getElementById("sendBtn");
 
-    btn.onclick = send;
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") send();
-    });
-  </script>
-</body>
+      function log(line) {
+        const time = new Date().toLocaleTimeString();
+        logEl.textContent += `[${time}] ${line}\n`;
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      function setConnected(isConnected) {
+        connectBtn.disabled = isConnected;
+        disconnectBtn.disabled = !isConnected;
+        msgEl.disabled = !isConnected;
+        sendBtn.disabled = !isConnected;
+      }
+
+      function connect() {
+        if (ws && ws.readyState === WebSocket.OPEN) return;
+
+        // 啟用的時候要確認後端的 port確實是 8080
+        ws = new WebSocket("ws://localhost:8080/ws");
+
+        ws.onopen = () => {
+          log("✅ Connected");
+          setConnected(true);
+          msgEl.focus();
+        };
+
+        ws.onmessage = (e) => {
+          log(`📩 ${e.data}`);
+        };
+
+        ws.onclose = () => {
+          log("🔌 Disconnected");
+          setConnected(false);
+        };
+
+        ws.onerror = (err) => {
+          log("❌ WebSocket error (see console)");
+          console.error(err);
+        };
+      }
+
+      function disconnect() {
+        if (ws) ws.close();
+      }
+
+      function send() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+        const text = msgEl.value.trim();
+        if (!text) return;
+
+        const name = nameEl.value.trim();
+        const payload = name ? `${name}: ${text}` : text;
+
+        ws.send(payload);
+        msgEl.value = "";
+        msgEl.focus();
+      }
+
+      connectBtn.addEventListener("click", connect);
+      disconnectBtn.addEventListener("click", disconnect);
+      sendBtn.addEventListener("click", send);
+
+      msgEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") send();
+      });
+
+      // 方便你一打開就測：自動連線（不想自動就刪掉這行）
+      connect();
+    </script>
+  </body>
 </html>
