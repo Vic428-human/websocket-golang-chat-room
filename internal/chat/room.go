@@ -16,6 +16,7 @@ func NewRoom() *Room {
 	}
 }
 
+// 房間不主動索取：room.run() 被動等待 <-r.forward，不會主動向客戶端要數據
 func (r *Room) Run() {
 	for {
 		select {
@@ -28,6 +29,12 @@ func (r *Room) Run() {
 				close(c.receive)
 			}
 
+		// forward 通道，是 webdocket 對瀏覽器透過 read方法 讀取訊息時，
+		// 透過 forward 通道傳遞訊息 ex: client.go 裡的 read()
+		// 所以 websocket 讀取完瀏覽器的訊息後，如果要發給所有房間內的clients
+		// 就會把 forward 裡的訊息都轉發給 clients
+		// 而每一個 client 都有自己的 receive 通道，
+		// 所以房間要把訊息給 clients時，就是把消息透過 forward 通道 轉給 recevie通道的過程
 		case msg := <-r.forward:
 			for c := range r.clients {
 				c.receive <- msg
