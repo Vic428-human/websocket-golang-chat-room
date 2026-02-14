@@ -73,6 +73,12 @@ func (r *Room) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	client := NewClient(conn, r)
+	// 在 ServeHTTP 設定 name
+	client.name = req.URL.Query().Get("name")
+
+	if client.name == "" {
+		client.name = "匿名"
+	}
 
 	// register
 	r.join <- client

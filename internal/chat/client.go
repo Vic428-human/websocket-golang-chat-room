@@ -6,13 +6,15 @@ type Client struct {
 	socket  *websocket.Conn
 	receive chan []byte
 	room    *Room
+	name    string
 }
 
 func NewClient(conn *websocket.Conn, room *Room) *Client {
 	return &Client{
 		socket:  conn,
 		receive: make(chan []byte, 256),
-		room:    room,
+		// 給 Client 加 name
+		room: room,
 	}
 }
 
@@ -24,7 +26,8 @@ func (c *Client) ReadPump() {
 		if err != nil {
 			return
 		}
-		c.room.forward <- msg
+		// 這樣就算前端送「假名字」，server 也會用它綁定的 name。
+		c.room.forward <- []byte(c.name + ": " + string(msg))
 	}
 }
 
