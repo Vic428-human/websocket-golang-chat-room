@@ -55,7 +55,38 @@ function App() {
 
   return (
     <>
-      <div>123</div>
+      <div className="min-h-screen flex items-center justify-center bg-zinc-100 p-4 font-inter">
+        {/* enter your name to start chat */}
+        {showNamePopUp && (
+          <div className="flex inset-0 items-center justify-center z-40">
+            <div className="bg-white">
+              <h1 className="text-xl font-semibold shadow-lg max-w-md p-6">
+                Enter your name
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                enter your name to start chatting
+              </p>
+
+              <form onSubmit={handleNameSubmit} className="mt-4">
+                <input
+                  autoFocus
+                  type="text"
+                  value={inputName}
+                  onChange={(e) => setInputName(e.target.value)}
+                  className="w-full border border-gray-200 rouned-md px-3 py-2 outline-green-500 placeholder-gray-400"
+                  placeholder="Enter your name"
+                />
+                <button
+                  type="submit"
+                  className="block ml-auto mt-3 px-4 py-1.5 rounded-full bg-green-500 text-white font-medium cursor-pointer"
+                >
+                  繼續
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
     </>
   );
 }
